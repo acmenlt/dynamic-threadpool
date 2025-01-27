@@ -17,6 +17,7 @@
         <jjwt.version>0.9.0</jjwt.version>
         <jackson-bom.version>2.11.1</jackson-bom.version>
         <h2.version>2.1.214</h2.version>
+        <postgresql.version>42.2.19</postgresql.version>
         <mockito.version>3.12.4</mockito.version>
         <dubbo.version>3.0.5</dubbo.version>
         <alibaba-dubbo.version>2.6.12</alibaba-dubbo.version>
@@ -110,6 +111,12 @@
                 <groupId>com.h2database</groupId>
                 <artifactId>h2</artifactId>
                 <version>${h2.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
                 <scope>runtime</scope>
             </dependency>
             <dependency>
