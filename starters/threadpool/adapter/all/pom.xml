@@ -40,5 +40,10 @@
             <artifactId>hippo4j-threadpool-spring-boot-starter-adapter-hystrix</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>cn.hippo4j</groupId>
+            <artifactId>hippo4j-threadpool-adapter-redisson</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>
