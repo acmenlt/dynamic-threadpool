@@ -64,11 +64,10 @@ public class BaseInstanceRegistry implements InstanceRegistry<InstanceInfo> {
     public void register(InstanceInfo registrant) {
         Map<String, Lease<InstanceInfo>> registerMap = registry.get(registrant.getAppName());
         if (registerMap == null) {
-            ConcurrentHashMap<String, Lease<InstanceInfo>> registerNewMap = new ConcurrentHashMap<>();
-            registerMap = registry.putIfAbsent(registrant.getAppName(), registerNewMap);
-            if (registerMap == null) {
-                registerMap = registerNewMap;
-            }
+            registerMap = registry.computeIfAbsent(registrant.getAppName(), k -> {
+                ConcurrentHashMap<String, Lease<InstanceInfo>> registerNewMap = new ConcurrentHashMap<>();
+                return registerNewMap;
+            });
         }
         Lease<InstanceInfo> existingLease = registerMap.get(registrant.getInstanceId());
         if (existingLease != null && (existingLease.getHolder() != null)) {

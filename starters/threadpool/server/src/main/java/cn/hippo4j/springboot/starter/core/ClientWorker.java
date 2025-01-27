@@ -276,9 +276,7 @@ public class ClientWorker implements DisposableBean {
         if (cacheData != null) {
             return cacheData;
         }
-        cacheData = new CacheData(namespace, itemId, threadPoolId);
-        CacheData lastCacheData = cacheMap.putIfAbsent(threadPoolId, cacheData);
-        if (lastCacheData == null) {
+        return cacheMap.computeIfAbsent(threadPoolId, k-> {
             String serverConfig;
             try {
                 serverConfig = getServerConfig(namespace, itemId, threadPoolId, defaultTimedOut);
@@ -287,9 +285,8 @@ public class ClientWorker implements DisposableBean {
             } catch (Exception ex) {
                 log.error("Cache Data Error. Service Unavailable: {}", ex.getMessage());
             }
-            lastCacheData = cacheData;
-        }
-        return lastCacheData;
+            return cacheData;
+        });
     }
 
     private void setHealthServer(boolean isHealthServer) {
