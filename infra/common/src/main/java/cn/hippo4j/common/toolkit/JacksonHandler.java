@@ -48,6 +48,7 @@ public class JacksonHandler implements JsonFacade {
         MAPPER.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         MAPPER.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         MAPPER.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        MAPPER.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
     }
 
     @Override
