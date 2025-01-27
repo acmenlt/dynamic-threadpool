@@ -178,6 +178,16 @@ public class BeforeCheckConfiguration {
                                     "Please check whether the [spring.dynamic.thread-pool.polaris.file.type] configuration is empty or an empty string.");
                         }
                     }
+
+                    Map<String, String> consul = properties.getConsul();
+                    if (MapUtil.isNotEmpty(consul)) {
+                        String dataKey = consul.get("data-key");
+                        if (StringUtil.isBlank(dataKey)) {
+                            throw new ConfigEmptyException(
+                                    "Web server maybe fail to start. The dynamic thread pool consul data-key is empty.",
+                                    "Please check whether the [spring.dynamic.thread-pool.consul.data-key] configuration is empty or an empty string.");
+                        }
+                    }
                     break;
                 }
                 default:

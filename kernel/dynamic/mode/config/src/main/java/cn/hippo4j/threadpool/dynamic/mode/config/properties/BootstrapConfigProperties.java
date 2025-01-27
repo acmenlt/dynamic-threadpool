@@ -82,6 +82,11 @@ public class BootstrapConfigProperties implements BootstrapPropertiesInterface {
     private Map<String, Object> polaris;
 
     /**
+     * Consul config
+     */
+    private Map<String, String> consul;
+
+    /**
      * Web config
      *
      * @since 1.5.0

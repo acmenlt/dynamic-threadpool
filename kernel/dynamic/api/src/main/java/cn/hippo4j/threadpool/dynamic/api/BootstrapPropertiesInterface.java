@@ -108,4 +108,10 @@ public interface BootstrapPropertiesInterface {
         return null;
     }
 
+    /**
+     * Get consul.
+     */
+    default Map<String, String> getConsul() {
+        return null;
+    }
 }
