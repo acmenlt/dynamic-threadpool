@@ -91,11 +91,15 @@ import org.springframework.core.env.ConfigurableEnvironment;
 @Configuration
 @AllArgsConstructor
 @ConditionalOnBean(MarkerConfiguration.Marker.class)
+//这个注解会使BootstrapProperties类上的ConfigurationProperties注解生效，
+// BootstrapProperties对象就可以被SpringBoot容器管理了
 @EnableConfigurationProperties(BootstrapProperties.class)
 @ConditionalOnProperty(prefix = Constants.CONFIGURATION_PROPERTIES_PREFIX, value = "enable", matchIfMissing = true, havingValue = "true")
 @ImportAutoConfiguration({WebAdapterConfiguration.class, NettyClientConfiguration.class, DiscoveryConfiguration.class, MessageConfiguration.class, UtilAutoConfiguration.class})
 public class DynamicThreadPoolAutoConfiguration {
 
+    //在这里把配置文件中的相关信息封封装到这个成员变量中了
+    //properties对象会被自动注入
     private final BootstrapProperties properties;
 
     private final ConfigurableEnvironment environment;
@@ -137,6 +141,8 @@ public class DynamicThreadPoolAutoConfiguration {
         return new AdaptedThreadPoolDestroyPostProcessor(applicationContext);
     }
 
+    //动态线程池处理器，这个处理器其实是就是spring中的一个bean处理器，在这个bean处理器中把动态线程池包装成了DynamicThreadPoolRegisterWrapper对象
+    //然后开始向服务端注册该动态线程池的信息
     @Bean
     @ConditionalOnProperty(prefix = Constants.CONFIGURATION_PROPERTIES_PREFIX, value = "enable", matchIfMissing = true, havingValue = "true")
     @SuppressWarnings("all")
@@ -242,6 +248,7 @@ public class DynamicThreadPoolAutoConfiguration {
         return new DynamicThreadPoolSubscribeConfig(threadPoolDynamicRefresh, clientWorker, properties);
     }
 
+    //远程通信组件，使用的是http通信方式
     @Bean
     public HttpAgent httpAgent(BootstrapProperties properties) {
         return new ServerHttpAgent(properties);

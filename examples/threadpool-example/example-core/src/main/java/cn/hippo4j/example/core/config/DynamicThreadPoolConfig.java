@@ -60,6 +60,13 @@ public class DynamicThreadPoolConfig {
 
     private static final int MAX_POOL_SIZE = AVAILABLE_PROCESSORS * 4;
 
+    /**
+     * 我定义了一个 SpringBoot 的配置类，在配置类中定义了一个 DynamicThreadPoolExecutor 对象交给了 SpringBoot 容器来管理，
+     * 并且还在该对象上面添加了 @DynamicThreadPool 注解。这样一来，我肯定就可以在
+     * DynamicThreadPoolPostProcessor 对象处理器的 postProcessAfterInitialization
+     * 方法中得到该对象，然后判断该对象是否为动态线程池对象，如果是的话，就可以把这个动态线程池的信息注册到服务端
+     * @return
+     */
     @Bean
     @DynamicThreadPool
     public Executor messageConsumeTtlDynamicThreadPool() {
@@ -76,6 +83,22 @@ public class DynamicThreadPoolConfig {
         // Ali ttl adaptation use case.
         Executor ttlExecutor = TtlExecutors.getTtlExecutor(customExecutor);
         return ttlExecutor;
+    }
+
+    @Bean
+    @DynamicThreadPool
+    public Executor messageConsumeTestDynamicThreadPool() {
+        String threadPoolId = "test";
+        ThreadPoolExecutor customExecutor = ThreadPoolBuilder.builder()
+                .dynamicPool()
+                .threadFactory(threadPoolId)
+                .threadPoolId(threadPoolId)
+                .executeTimeOut(EXECUTE_TIMEOUT)
+                .waitForTasksToCompleteOnShutdown(true)
+                .awaitTerminationMillis(AWAIT_TERMINATION_MILLIS)
+                .taskDecorator(new TaskTraceBuilderHandler())
+                .build();
+        return customExecutor;
     }
 
     /**

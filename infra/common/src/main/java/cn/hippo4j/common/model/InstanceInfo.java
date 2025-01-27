@@ -33,23 +33,24 @@ import lombok.extern.slf4j.Slf4j;
 public class InstanceInfo {
 
     private static final String UNKNOWN = "unknown";
-
+    //应用名称，未设置就是未知
     private String appName = UNKNOWN;
-
+    //地址
     private String hostName;
-
+    //这个就是命名空间+项目Id
     private String groupKey;
-
+    //端口号
     private String port;
-
+    //客户端服务实例Id，其实就是客户端地址+uuid (127.0.0.1:8088_eceeab1ab6a0471b838b97a47cfa1268)
     private String instanceId;
 
     private String ipApplicationName;
-
+    //客户端在配置文件中定义的上下文路径
     private String clientBasePath;
-
+    //客户端回调地址，这个地址非常重要，一会就会为大家解释说明
     private String callBackUrl;
-
+    //客户端唯一标识符，其实和instanceId一样、
+    //只不过这个标识符是要在web界面展示给用户的
     private String identify;
 
     private String active;
@@ -61,11 +62,11 @@ public class InstanceInfo {
     private volatile ActionType actionType;
 
     private volatile boolean isInstanceInfoDirty = false;
-
+    //客户端最后更新时间戳
     private volatile Long lastUpdatedTimestamp;
 
     private volatile Long lastDirtyTimestamp;
-
+    //服务实例的默认状态为up，也就是上线状态
     private volatile InstanceStatus status = InstanceStatus.UP;
 
     private volatile InstanceStatus overriddenStatus = InstanceStatus.UNKNOWN;

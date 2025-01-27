@@ -66,6 +66,7 @@ import static cn.hippo4j.common.constant.Constants.TP_ID;
 
 /**
  * Dynamic thread-pool post processor.
+ * 这个组件在DynamicThreadPoolAutoConfiguration 中被配置为bean 组件
  */
 @Slf4j
 @AllArgsConstructor
@@ -101,6 +102,7 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
             if ((dynamicThreadPoolExecutor) == null) {
                 dynamicThreadPoolExecutor = (DynamicThreadPoolExecutor) bean;
             }
+            //在这里把动态线程池的信息注册给服务端了
             ThreadPoolExecutor remoteThreadPoolExecutor = fillPoolAndRegister(((DynamicThreadPoolExecutor) dynamicThreadPoolExecutor).getThreadPoolId(), dynamicThreadPoolExecutor);
             DynamicThreadPoolAdapterChoose.replace(bean, remoteThreadPoolExecutor);
             subscribeConfig(((DynamicThreadPoolExecutor) dynamicThreadPoolExecutor).getThreadPoolId());
@@ -125,24 +127,40 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
      *
      * @param threadPoolId dynamic thread-pool id
      * @param executor     dynamic thread-pool executor
+     * 注册线程池信息到服务端的方法，注意，这里交给fillPoolAndRegister方法的
+     * 已经是dynamicThreadPoolWrapper对象了，而dynamicThreadPoolWrapper对象的代码之前已经展示过了
+     *
      */
     protected ThreadPoolExecutor fillPoolAndRegister(String threadPoolId, ThreadPoolExecutor executor) {
+        //封装线程池Id，命名空间，项目Id信息
         Map<String, String> queryStrMap = new HashMap<>(INITIAL_CAPACITY);
         queryStrMap.put(TP_ID, threadPoolId);
         queryStrMap.put(ITEM_ID, properties.getItemId());
         queryStrMap.put(NAMESPACE, properties.getNamespace());
+        //创建封装线程池参数信息的对象
         ThreadPoolParameterInfo threadPoolParameterInfo = new ThreadPoolParameterInfo();
+        //下面就是首先访问服务端，看看服务端是否存在动态线程池的配置信息的操作，如果存在就是用服务端的信息刷新本地动态线程池的配置信息
         try {
+            //这里做了一个访问服务端的操作，这是因为也许用户通过web界面，已经实现在服务端定义好了线程池的配置信息
+            //所以要以服务端的配置信息为主，因此在这里先访问服务端，看看服务端有没有设置好的动态线程池信息，其实就是去服务端查询数据库而已
+            //这里访问的就是服务端的ConfigController类的detailConfigInfo方法
+            //Constants.CONFIG_CONTROLLER_PATH就是要访问的服务端的接口，路径为"/hippo4j/v1/cs/configs"
             Result result = httpAgent.httpGetByConfig(Constants.CONFIG_CONTROLLER_PATH, null, queryStrMap, HTTP_EXECUTE_TIMEOUT);
+            //判断返回的结果中是否存在最新的线程池配置信息
             if (result.isSuccess() && result.getData() != null) {
                 String resultJsonStr = JSONUtil.toJSONString(result.getData());
+                //如果存在就获取信息，然后转换成threadPoolParameterInfo对象
                 threadPoolParameterInfo = JSONUtil.parseObject(resultJsonStr, ThreadPoolParameterInfo.class);
                 if (threadPoolParameterInfo != null) {
+                    //在这里刷新本地动态线程池的信息
                     threadPoolParamReplace(executor, threadPoolParameterInfo);
                     registerNotifyAlarm(threadPoolParameterInfo);
                 }
             } else {
                 // DynamicThreadPool configuration undefined in server
+                //下面就是第一次把动态线程池注册到服务端的操作
+                //如果走到这里就意味着服务端没有当前动态线程池的任何信息，那就要在客户端构建一个DynamicThreadPoolRegisterWrapper对象，然后把这个对象直接发送给服务端，进行注册即可
+                //这里创建的这个DynamicThreadPoolRegisterParameter对象封装了动态线程池的核心参数信息
                 DynamicThreadPoolRegisterParameter parameterInfo = DynamicThreadPoolRegisterParameter.builder()
                         .threadPoolId(threadPoolId)
                         .corePoolSize(executor.getCorePoolSize())
@@ -158,9 +176,14 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
                         .executeTimeOut(EXECUTE_TIME_OUT)
                         .rejectedPolicyType(RejectedPolicyTypeEnum.getRejectedPolicyTypeEnumByName(executor.getRejectedExecutionHandler().getClass().getSimpleName()))
                         .build();
+                //在这里创建了DynamicThreadPoolRegisterWrapper对象，并且把刚才创建的parameterInfo交给registerWrapper对象，
+                // 这个registerWrapper对象要发送给服务端进行注册
                 DynamicThreadPoolRegisterWrapper registerWrapper = DynamicThreadPoolRegisterWrapper.builder()
                         .parameter(parameterInfo)
                         .build();
+                //将线程池信息注册到服务端，这里是通过线程池全局管理器来注册的
+                //还记得我之前在展示GlobalThreadPoolManage代码的时候，让大家对dynamicRegister方法混个眼熟，这里就用到了dynamicRegister方法
+                //开始真正把客户端线程池信息注册到服务端了
                 GlobalThreadPoolManage.dynamicRegister(registerWrapper);
             }
         } catch (Exception ex) {

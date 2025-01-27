@@ -35,17 +35,22 @@ import lombok.NoArgsConstructor;
  * @see TaskRejectNotifyAlarmPlugin
  * @see ThreadPoolExecutorShutdownPlugin
  */
+// 默认的线程池插件注册器组件，通过这个注册器对象，把线程池的所有插件都注册到线程池的插件管理器中
+// DefaultThreadPoolPluginManager是一个线程池插件管理器，它的作用是管理线程池的插件
+// 这个组件在DynamicThreadPoolExecutor对象的构造方法中被创建，然后开始将插件注册到插件管理器中
 @NoArgsConstructor
 @AllArgsConstructor
 public class DefaultThreadPoolPluginRegistrar implements ThreadPoolPluginRegistrar {
 
     /**
      * Execute time out
+     * //这个就是用户设置的任务执行的超时时间
      */
     private long executeTimeOut;
 
     /**
      * Await termination millis
+     * //线程池关闭时，等待剩余任务执行的最大时间
      */
     private long awaitTerminationMillis;
 
@@ -54,12 +59,17 @@ public class DefaultThreadPoolPluginRegistrar implements ThreadPoolPluginRegistr
      *
      * @param support thread pool plugin manager delegate
      */
+    //这个就是把动态线程池各个内置的功能扩展插件注册到动态线程池的内部的插件管理器成员变量中的方法
     @Override
     public void doRegister(ThreadPoolPluginSupport support) {
+        //这里调用了DynamicThreadPoolExecutor对象的register方法，但是在我们目前的程序中
+        //动态线程池中根本没有register方法，所以还需要在动态线程池中再添加一个register方法
+        //具体实现我就写在当前这个代码块中了，请大家继续向下看
         support.register(new TaskDecoratorPlugin());
         support.register(new TaskTimeoutNotifyAlarmPlugin(support.getThreadPoolId(), executeTimeOut, support.getThreadPoolExecutor()));
         support.register(new TaskRejectCountRecordPlugin());
         support.register(new TaskRejectNotifyAlarmPlugin());
+        //awaitTerminationMillis就是等待剩余任务执行的最大时间，这两个参数是怎么被赋值的呢？
         support.register(new ThreadPoolExecutorShutdownPlugin(awaitTerminationMillis));
     }
 }

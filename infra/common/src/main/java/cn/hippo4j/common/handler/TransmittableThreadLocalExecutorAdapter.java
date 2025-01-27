@@ -33,18 +33,25 @@ public class TransmittableThreadLocalExecutorAdapter implements DynamicThreadPoo
 
     private static final String FIELD_NAME = "executor";
 
+    // 判断传进来的对象是否和当前适配器器对象匹配
     @Override
     public boolean match(Object executor) {
+        // 其实就是判断对象的类名是否为ExecutorTtlWrapper，如果是就意味着是第三方线程池
+        // 这个线程池中持有者动态线程池对象
         return Objects.equals(MATCH_CLASS_NAME, executor.getClass().getSimpleName());
     }
-
+    // 从ExecutorTtlWrapper对象中获得其持有的DynamicThreadPoolExecutor对象
     @Override
     public ThreadPoolExecutor unwrap(Object executor) {
+        // 通过反射获得ExecutorTtlWrapper对象的executor成员变量
+        // 在之前展示的ExecutorTtlWrapper类的代码中，可以看到，动态线程池会赋值给
+        // ExecutorTtlWrapper的executor成员变量
         return (ThreadPoolExecutor) ReflectUtil.getFieldValue(executor, FIELD_NAME);
     }
 
     @Override
     public void replace(Object executor, Executor dynamicThreadPoolExecutor) {
+        // 将dynamicThreadPoolExecutor对象替换到executor中
         ReflectUtil.setFieldValue(executor, FIELD_NAME, dynamicThreadPoolExecutor);
     }
 }

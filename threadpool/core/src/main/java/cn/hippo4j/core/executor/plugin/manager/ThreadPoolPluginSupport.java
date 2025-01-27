@@ -73,6 +73,10 @@ public interface ThreadPoolPluginSupport extends ThreadPoolPluginManager {
      */
     @Override
     default void register(ThreadPoolPlugin plugin) {
+        //动态线程池持有了插件管理器，这个插件管理器是定义在ExtensibleThreadPoolExecutor类中的
+        //并且使用了lombok的@Getter注解，所以就可以直接调用getThreadPoolPluginManager()方法得到插件管理器
+        //然后把插件注册到插件管理器中即可
+        // ThreadPoolPluginManager 是DynamicThreadPoolExecutor 构造器中传入了一个DefaultThreadPoolPluginManager
         getThreadPoolPluginManager().register(plugin);
     }
 

@@ -30,6 +30,7 @@ import java.util.concurrent.ThreadFactory;
 
 /**
  * Dynamic thread-pool register parameter.
+ * 封装动态线程池核心信息的对象
  */
 @Data
 @Builder

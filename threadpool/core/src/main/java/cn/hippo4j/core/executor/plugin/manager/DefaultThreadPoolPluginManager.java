@@ -93,6 +93,7 @@ public class DefaultThreadPoolPluginManager implements ThreadPoolPluginManager {
 
     /**
      * All registered {@link ThreadPoolPlugin}
+     * 线程池的插件被注册到registeredPlugins这里
      */
     private final Map<String, ThreadPoolPlugin> registeredPlugins = new ConcurrentHashMap<>(16);
 

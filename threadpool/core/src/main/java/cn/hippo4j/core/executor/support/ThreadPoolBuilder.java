@@ -35,14 +35,27 @@ import java.util.concurrent.TimeUnit;
  */
 public class ThreadPoolBuilder implements Builder<ThreadPoolExecutor> {
 
+    //这个表示线程池构建器是否要创建快速线程池，所谓快速线程池
+    //其实就是使用的任务队列特殊一点，使用了TaskQueue任务队列
+    //这个队列有一个特点，那就是只要当提交给任务队列的数量大于线程池当前线程的数量了
+    //但是当前线程数量仍然小于线程池的最大线程数量，这时候就可以不把任务添加到队列中
+    //而是让线程池直接创建线程执行任务，所谓快速，就快速在这里。实际上在hippo4j框架中
+    //不仅提供了动态线程池，还提供了FastThreadPoolExecutor快速线程池，最后还提供了普通线程池，也就是原生的ThreadPoolExecutor。
+    //这三种线程池想创建哪一种就创建哪一种，只不过只有DynamicThreadPoolExecutor动态线程池会被注册到服务单，并且可以动态更新配置信息
+    //快速线程池和普通线程池我就不在文章中展示了，反正所有线程池的创建都在ThreadPoolBuilder体系下，大家掌握了DynamicThreadPoolExecutor是如何创建的
+    //其他的也就都掌握了
     private boolean isFastPool;
 
+    //表示这个线程池构建器是否要创建动态线程池
     private boolean isDynamicPool;
 
+    //默认的线程池的核心线程数量，这个数量是根据CPU核心数量计算出来的
     private int corePoolSize = calculateCoreNum();
 
+    //默认的池最大线程数量
     private int maximumPoolSize = corePoolSize + (corePoolSize >> 1);
 
+    //默认存活时间
     private long keepAliveTime = 30000L;
 
     private TimeUnit timeUnit = TimeUnit.MILLISECONDS;
@@ -418,6 +431,11 @@ public class ThreadPoolBuilder implements Builder<ThreadPoolExecutor> {
      * @return dynamic thread-pool executor
      */
     private static ThreadPoolExecutor buildDynamicPool(ThreadPoolBuilder builder) {
+        //AbstractBuildThreadPoolTemplate.buildDynamicPool()方法中又调用了当前构建器对象的buildInitParam(builder)方法
+        //buildInitParam(builder)方法会得到一个ThreadPoolInitParam线程池初始化参数对象，该对象封装了线程池需要的配置参数
+        //线程池构建器模板就会使用这个参数对象创建动态线程池
+        //而线程池构建器模板就是AbstractBuildThreadPoolTemplate，至于为什么是抽象的，是因为这个模板不仅可以创建动态线程池
+        //还可以创建动态线程池，还有普通线程池，这个就不再过多解释了
         return AbstractBuildThreadPoolTemplate.buildDynamicPool(buildInitParam(builder));
     }
 
@@ -428,13 +446,19 @@ public class ThreadPoolBuilder implements Builder<ThreadPoolExecutor> {
      * @return thread-pool init param
      */
     private static AbstractBuildThreadPoolTemplate.ThreadPoolInitParam buildInitParam(ThreadPoolBuilder builder) {
+        //定义一个ThreadPoolInitParam对象
         AbstractBuildThreadPoolTemplate.ThreadPoolInitParam initParam;
         if (builder.threadFactory == null) {
+            //判断线程工厂是否为空，如果线程工厂为空，就判断线程池中线程前缀是否为空
+            //如果线程前缀不为空，则直接创建ThreadPoolInitParam对象即可，这里创建ThreadPoolInitParam对象的过程中，其实就把ThreadPoolInitParam
+            //对象内部的ThreadFactory成员变量创建成功了
             Assert.notEmpty(builder.threadNamePrefix, "The thread name prefix cannot be empty or an empty string.");
             initParam = new AbstractBuildThreadPoolTemplate.ThreadPoolInitParam(builder.threadNamePrefix, builder.isDaemon);
         } else {
+            //如果线程工厂不为空，直接创建ThreadPoolInitParam对象即可
             initParam = new AbstractBuildThreadPoolTemplate.ThreadPoolInitParam(builder.threadFactory);
         }
+        //接下来就要使用刚才得到的构造器对象给initParam中的其他成员变量赋值即可
         initParam.setCorePoolNum(builder.corePoolSize)
                 .setMaximumPoolSize(builder.maximumPoolSize)
                 .setKeepAliveTime(builder.keepAliveTime)
@@ -444,10 +468,15 @@ public class ThreadPoolBuilder implements Builder<ThreadPoolExecutor> {
                 .setTimeUnit(builder.timeUnit)
                 .setAllowCoreThreadTimeOut(builder.allowCoreThreadTimeOut)
                 .setTaskDecorator(builder.taskDecorator);
+        //判断用户要创建的是什么线程池
         if (builder.isDynamicPool) {
+            //这里创建的就是动态线程池得到线程池Id
             String threadPoolId = Optional.ofNullable(builder.threadPoolId).orElse(builder.threadNamePrefix);
+            //设置线程池Id
             initParam.setThreadPoolId(threadPoolId);
+            //设置线程池关闭时是否等待正在执行的任务执行完毕
             initParam.setWaitForTasksToCompleteOnShutdown(builder.waitForTasksToCompleteOnShutdown);
+            //设置线程池关闭时，等待剩余任务执行的最大时间
             initParam.setAwaitTerminationMillis(builder.awaitTerminationMillis);
         }
         if (!builder.isFastPool) {

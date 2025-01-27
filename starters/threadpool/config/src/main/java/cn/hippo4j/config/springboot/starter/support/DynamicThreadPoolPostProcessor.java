@@ -47,11 +47,16 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Dynamic thread-pool post processor.
+ * BeanPostProcessor 接口定义了两个主要方法：
+ * 1. postProcessBeforeInitialization(Object bean, String beanName)：在 bean 初始化方法
+ * （如 @PostConstruct 注解的方法或 InitializingBean 接口的 afterPropertiesSet 方法）调用之前执行。
+ * 2. postProcessAfterInitialization(Object bean, String beanName)：在 bean 初始化方法调用之后执行。
  */
 @Slf4j
 @AllArgsConstructor
 public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
 
+    // 配置信息对象
     private final BootstrapConfigProperties configProperties;
 
     private static final int DEFAULT_ACTIVE_ALARM = 80;
@@ -62,21 +67,37 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
 
     private static final String DEFAULT_RECEIVES = "";
 
+    // bean前置处理方法
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) {
         return bean;
     }
 
+    // bean后置处理方法
+    // 在这里判断bean是否为动态线程池对象，如果是的话就可以把动态线程池信息注册到服务端
+    // 这个方法就是本类最核心的方法，用来处理DynamicThreadPoolExecutor对象
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        // 这里会先判断一下传进来的bean是否属于DynamicThreadPoolExecutor类型，如果大家看了我在DynamicThreadPoolConfig类提供的几个例子
+        // 就会发现我创建动态线程池对象最终是以Executor或者ThreadPoolExecutor形式返回的，如果是以Executor形式返回的，这个Executor接收的还并不是一个DynamicThreadPoolExecutor对象
+        // 而是一个ExecutorTtlWrapper对象，这个ExecutorTtlWrapper对象的作用我已经在DynamicThreadPoolConfig类中解释了，这时候，ExecutorTtlWrapper对象肯定就不属于DynamicThreadPoolExecutor类型了
+        // 但是先别急，虽然ExecutorTtlWrapper对象不属于DynamicThreadPoolExecutor类型，但是后面的DynamicThreadPoolAdapterChoose.match(bean)这个条件还是可以通过的，所以仍然可以进入下面的分支
+        // 那为什么要执行DynamicThreadPoolAdapterChoose.match(bean)这行代码呢？原因也很简单，因为有时候用户可能会使用spring本身的线程池，或者其他第三方形式的线程池，比如ExecutorTtl，比如spring的ThreadPoolTaskExecutor
+        // 该动态线程池框架也想收集这些线程池的信息，所以就会在DynamicThreadPoolAdapterChoose.match(bean)中判断程序内是否有这些第三方线程池的适配器，如果有，就可以使用这些适配器把这些第三方线程池转换成DynamicThreadPoolExecutor对象
+        // 之后的逻辑就和处理真正的DynamicThreadPoolExecutor对象一样了，无非就是把线程池信息注册到服务端，然后把线程池保存在线程池全局管理器中
+        // DynamicThreadPoolAdapterChoose.match(bean)就是判断bean的类型是否为ThreadPoolTaskExecutor、ExecutorTtlWrapper、ExecutorServiceTtlWrapper中的一个，这些都是第三方的线程池
         if (bean instanceof DynamicThreadPoolExecutor || DynamicThreadPoolAdapterChoose.match(bean)) {
             DynamicThreadPool dynamicThreadPool;
             try {
+                // 判断该线程池bean对象上是否存在DynamicThreadPool注解
                 dynamicThreadPool = ApplicationContextHolder.findAnnotationOnBean(beanName, DynamicThreadPool.class);
+                // 如果找不到该注解，就进入下面这个分支
                 if (Objects.isNull(dynamicThreadPool)) {
                     // Adapt to lower versions of SpringBoot.
+                    // 这里就是为了适配SpringBoot低版本，使用DynamicThreadPoolAnnotationUtil工具再次查找注解
                     dynamicThreadPool = DynamicThreadPoolAnnotationUtil.findAnnotationOnBean(beanName, DynamicThreadPool.class);
                     if (Objects.isNull(dynamicThreadPool)) {
+                        // 还是找不到则直接返回bean即可
                         return bean;
                     }
                 }
@@ -84,10 +105,18 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
                 log.error("Failed to create dynamic thread pool in annotation mode.", ex);
                 return bean;
             }
+            // 走到这里意味着当前的bean上有DynamicThreadPool注解，也就意味着是一个动态线程池，下面就要收集动态线程池配置信息了
+            // 定义一个动态线程池
             ThreadPoolExecutor dynamicThreadPoolExecutor = DynamicThreadPoolAdapterChoose.unwrap(bean);
+            // 下面的if分支会先从适配器中获得真正的动态线程池，如果获得的线程池为空，说明当前bean本身就是动态线程池，如果不为空，则正好得到了真正的动态线程池，并且赋值给dynamicThreadPoolExecutor了
+            // 将bean转换为dynamicThreadPoolExecutor类型，确切地说不是把当前要交给容器的这个bean转换成dynamicThreadPoolExecutor对象
+            // 实际上ExecutorTtlWrapper只是持有了dynamicThreadPoolExecutor的引用，这里只不过是直接利用反射从ExecutorTtlWrapper把dynamicThreadPoolExecutor对象取出来了
             if (dynamicThreadPoolExecutor == null) {
                 dynamicThreadPoolExecutor = (DynamicThreadPoolExecutor) bean;
             }
+            // 将刚刚得到的dynamicThreadPoolExecutor对象包装成一个DynamicThreadPoolWrapper对象，这个对象会被交给线程池全局管理器来管理
+            // 之后收集线程池运行信息时都要用到这个对象
+            // 在这里把动态线程池的信息注册给服务端了
             ThreadPoolExecutor remoteThreadPoolExecutor = fillPoolAndRegister(((DynamicThreadPoolExecutor) dynamicThreadPoolExecutor).getThreadPoolId(), dynamicThreadPoolExecutor);
             DynamicThreadPoolAdapterChoose.replace(bean, remoteThreadPoolExecutor);
             return DynamicThreadPoolAdapterChoose.match(bean) ? bean : remoteThreadPoolExecutor;
@@ -100,10 +129,15 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
      *
      * @param threadPoolId dynamic thread-pool id
      * @param executor     dynamic thread-pool executor
+     * fillPoolAndRegister 方法实现思路非常简单，但要执行的操作就稍微多一些了，
+     * 我之所以说该方法实现思路简单，是因为在该方法中，只需要把动态线程池的配置信息封装到一个新的对象，
+     * 就是我即将要定义的 DynamicThreadPoolRegisterParameter 对象中，
+     * 然后将这个对象直接通过 HttpAgent 通信组件发送给服务端即可
      */
     protected ThreadPoolExecutor fillPoolAndRegister(String threadPoolId, ThreadPoolExecutor executor) {
         ExecutorProperties executorProperties = null;
         if (configProperties.getExecutors() != null) {
+            // 从配置文件中获取线程池配置信息
             executorProperties = configProperties.getExecutors()
                     .stream()
                     .filter(each -> Objects.equals(threadPoolId, each.getThreadPoolId()))

@@ -59,6 +59,7 @@ public class DynamicThreadPoolExecutor extends ExtensibleThreadPoolExecutor impl
 
     /**
      * Wait for tasks to complete on shutdown
+     *  //关闭线程池时是否等待任务执行完毕
      */
     @Getter
     @Setter
@@ -102,6 +103,9 @@ public class DynamicThreadPoolExecutor extends ExtensibleThreadPoolExecutor impl
      * @throws NullPointerException     if {@code workQueue}
      *                                  or {@code threadFactory} or {@code handler} is null
      */
+    //构造方法
+    //这个构造方法中有两个参数，一个是executeTimeOut，这个就是用户设置的任务执行的超时时间，这个参数该怎么发挥作用呢？
+    //另一个是awaitTerminationMillis，代表线程池关闭时，等待剩余任务执行的最大时间，那这个参数又该怎么发挥作用呢？
     public DynamicThreadPoolExecutor(
                                      int corePoolSize, int maximumPoolSize,
                                      long keepAliveTime, TimeUnit unit,
@@ -110,13 +114,19 @@ public class DynamicThreadPoolExecutor extends ExtensibleThreadPoolExecutor impl
                                      @NonNull String threadPoolId,
                                      @NonNull ThreadFactory threadFactory,
                                      @NonNull RejectedExecutionHandler rejectedExecutionHandler) {
+        // 可以看到向父类构造方法传入了一个 threadPoolId 参数，threadPoolId 就是动态线程池的 Id。
+        // 每一个动态线程池都有自己的 Id，用来和其他动态线程池做区分
         super(
+                // 这里给ExtensibleThreadPoolExecutor 的构造方法传入了一个 DefaultThreadPoolPluginManager 参数
                 threadPoolId, new DefaultThreadPoolPluginManager().setPluginComparator(AnnotationAwareOrderComparator.INSTANCE),
                 corePoolSize, maximumPoolSize, keepAliveTime, unit,
                 blockingQueue, threadFactory, rejectedExecutionHandler);
         log.info("Initializing ExecutorService '{}'", threadPoolId);
         this.waitForTasksToCompleteOnShutdown = waitForTasksToCompleteOnShutdown;
         // Init default plugins.
+        //在这里创建了默认的插件管理器DefaultThreadPoolPluginManager对象
+        //注意，这里有一行非常重要的代码，这里的操作非常重要，就是在这里，把所有插件都注册到当前动态线程池对象的插件管理器中了
+        //这时候，executeTimeOut和awaitTerminationMillis参数也就可以发挥作用了
         new DefaultThreadPoolPluginRegistrar(executeTimeOut, awaitTerminationMillis)
                 .doRegister(this);
         this.active = new AtomicBoolean(true);
@@ -135,6 +145,7 @@ public class DynamicThreadPoolExecutor extends ExtensibleThreadPoolExecutor impl
     /**
      * Invoked by the containing {@code BeanFactory} on destruction of a bean.
      */
+    //销毁动态线程池的方法
     @Override
     public void destroy() {
         // instance has been destroyed, not need to call this method again
@@ -142,11 +153,13 @@ public class DynamicThreadPoolExecutor extends ExtensibleThreadPoolExecutor impl
             log.warn("Failed to destroy ExecutorService '{}' because it has already been destroyed", getThreadPoolId());
             return;
         }
+        //如果等待任务执行完毕再终止线程池工作，就调用shutdown方法
         if (isWaitForTasksToCompleteOnShutdown()) {
             super.shutdown();
         } else {
             super.shutdownNow();
         }
+        //在这里清空插件管理器中的插件
         getThreadPoolPluginManager().clear();
         log.info("ExecutorService '{}' has been destroyed", getThreadPoolId());
 

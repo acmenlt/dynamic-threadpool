@@ -85,6 +85,7 @@ public class AbstractBuildThreadPoolTemplate {
      *
      * @param initParam init param
      * @return dynamic monitor thread-pool
+     * 创建动态线程池的方法
      */
     public static DynamicThreadPoolExecutor buildDynamicPool(ThreadPoolInitParam initParam) {
         Assert.notNull(initParam);
@@ -105,6 +106,7 @@ public class AbstractBuildThreadPoolTemplate {
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException(String.format("Error creating thread pool parameter. threadPool id: %s", initParam.getThreadPoolId()), ex);
         }
+        //在这里设置了任务装饰器
         dynamicThreadPoolExecutor.setTaskDecorator(initParam.getTaskDecorator());
         dynamicThreadPoolExecutor.allowCoreThreadTimeOut(initParam.allowCoreThreadTimeOut);
         return dynamicThreadPoolExecutor;
@@ -112,6 +114,7 @@ public class AbstractBuildThreadPoolTemplate {
 
     /**
      * Thread-pool init param.
+     * 这个内部类的对象封装了线程池的核心参数，最后就是用它来创建线程池的
      */
     @Data
     @Accessors(chain = true)

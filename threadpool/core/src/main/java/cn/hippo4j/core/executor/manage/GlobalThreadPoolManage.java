@@ -34,7 +34,10 @@ public class GlobalThreadPoolManage {
      * @param registerWrapper register wrapper
      */
     public static ThreadPoolExecutor dynamicRegister(DynamicThreadPoolRegisterWrapper registerWrapper) {
+        //这里从ApplicationContext中得到了DynamicThreadPoolService对象
+        //ApplicationContextHolder其实就是SpringBoot的ApplicationContext
         DynamicThreadPoolService dynamicThreadPoolService = ApplicationContextHolder.getBean(DynamicThreadPoolService.class);
+        //DynamicThreadPoolService对象把动态线程池信息注册到服务端
         return dynamicThreadPoolService.registerDynamicThreadPool(registerWrapper);
     }
 }

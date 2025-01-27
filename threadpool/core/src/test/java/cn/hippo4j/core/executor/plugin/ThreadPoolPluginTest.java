@@ -22,9 +22,11 @@ import cn.hippo4j.core.executor.ExtensibleThreadPoolExecutor;
 import cn.hippo4j.core.executor.plugin.*;
 import cn.hippo4j.core.executor.plugin.manager.DefaultThreadPoolPluginManager;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * test for default method of {@link ThreadPoolPlugin} and it's subclass
  */
+@Slf4j
 public class ThreadPoolPluginTest {
 
     @Test
@@ -88,6 +91,16 @@ public class ThreadPoolPluginTest {
     private final static class TestShutdownAwarePlugin implements ShutdownAwarePlugin {
 
         private final String id = this.getClass().getSimpleName();
+
+        @Override
+        public void beforeShutdown(ThreadPoolExecutor executor) {
+           log.info("before shutdown", id);
+        }
+
+        @Override
+        public void afterShutdown(ThreadPoolExecutor executor, List<Runnable> remainingTasks) {
+            log.info("after shutdown", id);
+        }
     }
 
 }

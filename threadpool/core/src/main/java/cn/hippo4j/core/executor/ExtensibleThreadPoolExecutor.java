@@ -50,17 +50,21 @@ import java.util.concurrent.TimeUnit;
  *
  * @see ThreadPoolPluginManager
  * @see ThreadPoolPlugin
+ * 扩展线程池类，这个类为jdk的原生线程池提供了非常多的扩展点，基本上每一个重要操作都提供了拓展点
+ * 插件体系
  */
 public class ExtensibleThreadPoolExecutor extends ThreadPoolExecutor implements ThreadPoolPluginSupport {
 
     /**
      * Thread pool id
+     * 线程池Id
      */
     @Getter
     private final String threadPoolId;
 
     /**
      * Action aware registry
+     * 插件管理器对象，当前线程池用到的所有插件都会注册到这个管理器中
      */
     @Getter
     private final ThreadPoolPluginManager threadPoolPluginManager;
@@ -108,6 +112,7 @@ public class ExtensibleThreadPoolExecutor extends ThreadPoolExecutor implements 
                                         @NonNull RejectedExecutionHandler handler) {
         super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler);
         // pool extended info.
+        //给线程池Id赋值
         this.threadPoolId = threadPoolId;
         this.threadPoolPluginManager = threadPoolPluginManager;
         // proxy handler to support callback, repeated packaging of the same rejection policy should be avoided here.
@@ -122,6 +127,7 @@ public class ExtensibleThreadPoolExecutor extends ThreadPoolExecutor implements 
      *
      * @param thread   the thread that will run task {@code r}
      * @param runnable the task that will be executed
+     *                执行任务之前的回调
      */
     @Override
     protected void beforeExecute(Thread thread, Runnable runnable) {
@@ -158,6 +164,7 @@ public class ExtensibleThreadPoolExecutor extends ThreadPoolExecutor implements 
      * @param runnable  the runnable that has completed
      * @param throwable the exception that caused termination, or null if
      *                  execution completed normally
+     *                  执行任务之后的回调
      */
     @Override
     protected void afterExecute(Runnable runnable, Throwable throwable) {
