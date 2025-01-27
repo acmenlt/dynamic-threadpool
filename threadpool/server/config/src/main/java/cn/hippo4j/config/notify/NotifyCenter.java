@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 
 /**
  * Unified event notify center.
@@ -43,7 +44,7 @@ public class NotifyCenter {
 
     private DefaultSharePublisher sharePublisher;
 
-    private static EventPublisher eventPublisher = new DefaultPublisher();
+    private static final Supplier<EventPublisher> publisherSupplier = DefaultPublisher::new;
 
     private static BiFunction<Class<? extends AbstractEvent>, Integer, EventPublisher> publisherFactory;
 
@@ -52,7 +53,7 @@ public class NotifyCenter {
     static {
         publisherFactory = (cls, buffer) -> {
             try {
-                EventPublisher publisher = eventPublisher;
+                EventPublisher publisher = publisherSupplier.get();
                 publisher.init(cls, buffer);
                 return publisher;
             } catch (Throwable ex) {
