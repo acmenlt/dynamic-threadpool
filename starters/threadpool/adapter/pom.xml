@@ -19,6 +19,7 @@
         <module>rocketmq</module>
         <module>kafka</module>
         <module>hystrix</module>
+        <module>redisson</module>
         <module>stream-rocketmq</module>
         <module>stream-rabbitmq</module>
         <module>web</module>
